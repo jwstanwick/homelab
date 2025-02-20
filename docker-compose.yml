@@ -1,0 +1,39 @@
+services:
+  metube:
+    image: ghcr.io/alexta69/metube
+    container_name: metube
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+    volumes:
+      - shared_downloads:/downloads
+    networks:
+      - nas_network
+
+  nas:
+    image: dperson/samba
+    container_name: nas
+    restart: unless-stopped
+    environment:
+      - TZ=UTC
+      - WORKGROUP=WORKGROUP
+      # Format: user;password[;ID;group]
+      - USERID=1000
+      - USER=FreakiestNas;FreakiestNas
+    ports:
+      - "137:137/udp"
+      - "138:138/udp"
+      - "139:139/tcp"
+      - "445:445/tcp"
+    volumes:
+      - shared_downloads:/share
+    command: '-s "Downloads;/share;yes;no;yes;all;none;none" -u "FreakiestNas;FreakiestNas" -p'
+    networks:
+      - nas_network
+
+volumes:
+  shared_downloads:
+
+networks:
+  nas_network:
+    driver: bridge
