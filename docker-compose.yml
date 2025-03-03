@@ -66,6 +66,20 @@ services:
     networks:
       - nas_network
 
+  stats-dashboard:
+    image: influxdb/telegraf
+    container_name: stats-dashboard
+    restart: unless-stopped
+    ports:
+      - "8086:8086" # InfluxDB
+      - "3001:3000" # Grafana
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - grafana_data:/var/lib/grafana
+      - influxdb_data:/var/lib/influxdb
+    networks:
+      - nas_network
+
 volumes:
   shared_downloads:
   ollama_data:
