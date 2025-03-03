@@ -1,15 +1,22 @@
-deploy:
-	docker compose up --build
+.PHONY: deploy deploy-mac deploy-pi down
 
-stop:
+# Default deployment (for Mac/desktop)
+deploy:
+	OLLAMA_API_URL=http://localhost:11434/api docker compose up -d
+
+# Specific deployment for Mac/desktop (uses local Ollama)
+deploy-mac:
+	OLLAMA_API_URL=http://localhost:11434/api docker compose up -d
+
+# Deployment for Raspberry Pi (uses containerized Ollama)
+deploy-pi:
+	docker compose --profile raspberry_pi up -d
+
+# Stop all containers
+down:
 	docker compose down
 
-dashboard:
-	@echo "Launching system dashboard..."
-	@tmux new-session -d -s dashboard "watch -n 1 docker stats"
-	@tmux split-window -v "htop"
-	@tmux attach-session -t dashboard
-
-install-dashboard:
-	@echo "Installing dashboard..."
-	lxterminal --geometry=maximized -e "make -f /home/jwstanwick/homelab/makefile dashboard"
+# Rebuild and deploy (for development)
+rebuild:
+	docker compose build --no-cache videotranscoder
+	make deploy
