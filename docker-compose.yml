@@ -66,23 +66,42 @@ services:
     networks:
       - nas_network
 
-  stats-dashboard:
-    image: influxdb/telegraf
-    container_name: stats-dashboard
+  influxdb:
+    image: influxdb:2.7
+    container_name: influxdb
     restart: unless-stopped
     ports:
-      - "8086:8086" # InfluxDB
-      - "3001:3000" # Grafana
+      - "8086:8086"
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - influxdb_data:/var/lib/influxdb2
+    environment:
+      - DOCKER_INFLUXDB_INIT_MODE=setup
+      - DOCKER_INFLUXDB_INIT_USERNAME=admin
+      - DOCKER_INFLUXDB_INIT_PASSWORD=adminpassword
+      - DOCKER_INFLUXDB_INIT_ORG=homelab
+      - DOCKER_INFLUXDB_INIT_BUCKET=docker_metrics
+    networks:
+      - nas_network
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    restart: unless-stopped
+    ports:
+      - "3001:3000"
+    volumes:
       - grafana_data:/var/lib/grafana
-      - influxdb_data:/var/lib/influxdb
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=adminpassword
     networks:
       - nas_network
 
 volumes:
   shared_downloads:
   ollama_data:
+  grafana_data:
+  influxdb_data:
 
 networks:
   nas_network:
