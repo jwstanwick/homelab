@@ -12,5 +12,4 @@ dashboard:
 
 install-dashboard:
 	@echo "Installing dashboard..."
-	sleep 20
-	lxterminal --geometry=maximized -e "make -f /path/to/your/Makefile dashboard"
+	lxterminal --geometry=maximized -e "make -f /home/jwstanwick/homelab/makefile dashboard"
