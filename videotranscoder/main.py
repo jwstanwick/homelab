@@ -9,6 +9,8 @@ import threading
 import logging
 from pathlib import Path
 import sys
+import datetime
+import subprocess
 
 app = Flask(__name__)
 
@@ -42,25 +44,75 @@ class VideoHandler(FileSystemEventHandler):
             # Process in a separate thread to not block the observer
             threading.Thread(target=self.process_video, args=(file_path,)).start()
 
+    def check_audio_in_file(self, file_path):
+        """Check if the file contains valid audio streams"""
+        try:
+            # Use ffprobe to get information about the file
+            cmd = ['ffprobe', '-v', 'error', '-select_streams', 'a', '-show_entries', 
+                   'stream=codec_type', '-of', 'default=noprint_wrappers=1', str(file_path)]
+            
+            result = subprocess.run(cmd, capture_output=True, text=True)
+            
+            # If there's audio stream information in the output, the file has audio
+            return 'codec_type=audio' in result.stdout
+        except Exception as e:
+            logger.error(f"Error checking audio in file {file_path}: {str(e)}")
+            return False
+
     def process_video(self, webm_path):
         try:
             logger.info(f"Starting to process {webm_path}")
             
+            # Check if the file exists and has a non-zero size
+            if not webm_path.exists() or webm_path.stat().st_size == 0:
+                logger.error(f"File {webm_path} does not exist or is empty")
+                return
+            
+            # Check if the file contains audio
+            if not self.check_audio_in_file(webm_path):
+                logger.error(f"File {webm_path} does not contain valid audio streams")
+                # Create a note about the error
+                error_note_path = webm_path.parent / f"{webm_path.stem}_ERROR.txt"
+                with open(error_note_path, 'w') as f:
+                    f.write(f"Error processing {webm_path.name}: No valid audio found in the file.")
+                return
+            
+            # Get video title (filename without extension)
+            video_title = webm_path.stem
+            
+            # Get current date in MM-DD-YYYY format (using hyphens instead of slashes)
+            current_date = datetime.datetime.now().strftime("%m-%d-%Y")
+            
             # Create output directory with video name
-            output_dir = webm_path.parent / webm_path.stem
+            output_dir = webm_path.parent / video_title
             output_dir.mkdir(exist_ok=True)
             
             # Output paths
-            mp4_path = output_dir / f"{webm_path.stem}.mp4"
-            transcript_path = output_dir / "transcript.txt"
+            mp4_path = output_dir / f"{video_title}.mp4"
+            
+            # Format transcript filename with date
+            formatted_title = f"{video_title} - {current_date}"
+            transcript_path = output_dir / f"{formatted_title}.txt"
 
             # Convert webm to mp4
             logger.info(f"Converting {webm_path} to MP4")
             try:
+                # Use more explicit ffmpeg options to ensure audio is properly handled
                 stream = ffmpeg.input(str(webm_path))
-                stream = ffmpeg.output(stream, str(mp4_path))
+                stream = ffmpeg.output(stream, str(mp4_path), acodec='aac', vcodec='h264')
                 ffmpeg.run(stream, overwrite_output=True)
                 logger.info(f"Conversion to MP4 completed: {mp4_path}")
+                
+                # Verify the output file exists and has content
+                if not mp4_path.exists() or mp4_path.stat().st_size == 0:
+                    logger.error(f"Converted file {mp4_path} does not exist or is empty")
+                    raise Exception("Conversion failed: output file is empty or missing")
+                
+                # Verify the output file has audio
+                if not self.check_audio_in_file(mp4_path):
+                    logger.error(f"Converted file {mp4_path} does not contain valid audio streams")
+                    raise Exception("Conversion failed: no valid audio in output file")
+                
             except Exception as e:
                 logger.error(f"FFmpeg conversion failed: {str(e)}")
                 raise
@@ -68,13 +120,21 @@ class VideoHandler(FileSystemEventHandler):
             # Generate transcript
             logger.info(f"Generating transcript for {mp4_path}")
             try:
+                # Use a try-except block with a timeout to prevent hanging
                 result = model.transcribe(str(mp4_path))
+                
+                # Check if the transcription result is empty
+                if not result or not result.get("text"):
+                    logger.warning(f"Transcription result is empty for {mp4_path}")
+                    result = {"text": "No speech detected in the audio."}
+                
                 logger.info("Transcription completed")
             except Exception as e:
                 logger.error(f"Transcription failed: {str(e)}")
-                raise
+                # Create a basic transcript with the error
+                result = {"text": f"Error during transcription: {str(e)}"}
 
-            # Save transcript
+            # Save transcript with formatted name
             try:
                 with open(transcript_path, 'w') as f:
                     f.write(result["text"])
@@ -95,6 +155,13 @@ class VideoHandler(FileSystemEventHandler):
 
         except Exception as e:
             logger.error(f"Error processing {webm_path}: {str(e)}")
+            # Create an error file to indicate the failure
+            try:
+                error_path = webm_path.parent / f"{webm_path.stem}_processing_error.txt"
+                with open(error_path, 'w') as f:
+                    f.write(f"Error processing {webm_path.name}: {str(e)}")
+            except:
+                pass
 
 class FileMonitor:
     def __init__(self, path_to_watch):

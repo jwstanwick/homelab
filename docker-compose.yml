@@ -6,7 +6,7 @@ services:
     ports:
       - "8081:8081"
     volumes:
-      - shared_downloads:/downloads
+      - ${LOCAL_DOWNLOADS_PATH:-shared_downloads}:/downloads
     networks:
       - nas_network
 
@@ -17,7 +17,7 @@ services:
     ports:
       - "5001:5000"
     volumes:
-      - shared_downloads:/share
+      - ${LOCAL_DOWNLOADS_PATH:-shared_downloads}:/share
     networks:
       - nas_network
 
@@ -41,20 +41,8 @@ services:
     command: '-s "Downloads;/share;yes;no;yes;all;none;none" -u "FreakiestNas;FreakiestNas" -p'
     networks:
       - nas_network
-
-  # Ollama service with profile for Raspberry Pi
-  ollama:
-    image: ollama/ollama
-    container_name: ollama
-    restart: unless-stopped
-    ports:
-      - "11434:11434"
-    volumes:
-      - ollama_data:/root/.ollama
-    networks:
-      - nas_network
     profiles:
-      - raspberry_pi
+      - with_nas
 
   openwebui:
     image: ghcr.io/open-webui/open-webui:main
@@ -63,40 +51,40 @@ services:
     ports:
       - "3002:8080"
     environment:
-      - OLLAMA_API_BASE_URL=${OLLAMA_API_URL:-http://ollama:11434/api}
+      - OLLAMA_API_BASE_URL=${OLLAMA_API_URL:-http://100.109.13.105:11434/api}
     networks:
       - nas_network
 
-  influxdb:
-    image: influxdb:2.7
-    container_name: influxdb
-    restart: unless-stopped
-    ports:
-      - "8086:8086"
-    volumes:
-      - influxdb_data:/var/lib/influxdb2
-    environment:
-      - DOCKER_INFLUXDB_INIT_MODE=setup
-      - DOCKER_INFLUXDB_INIT_USERNAME=admin
-      - DOCKER_INFLUXDB_INIT_PASSWORD=adminpassword
-      - DOCKER_INFLUXDB_INIT_ORG=homelab
-      - DOCKER_INFLUXDB_INIT_BUCKET=docker_metrics
-    networks:
-      - nas_network
+  # influxdb:
+  #   image: influxdb:2.7
+  #   container_name: influxdb
+  #   restart: unless-stopped
+  #   ports:
+  #     - "8086:8086"
+  #   volumes:
+  #     - influxdb_data:/var/lib/influxdb2
+  #   environment:
+  #     - DOCKER_INFLUXDB_INIT_MODE=setup
+  #     - DOCKER_INFLUXDB_INIT_USERNAME=admin
+  #     - DOCKER_INFLUXDB_INIT_PASSWORD=adminpassword
+  #     - DOCKER_INFLUXDB_INIT_ORG=homelab
+  #     - DOCKER_INFLUXDB_INIT_BUCKET=docker_metrics
+  #   networks:
+  #     - nas_network
 
-  grafana:
-    image: grafana/grafana:latest
-    container_name: grafana
-    restart: unless-stopped
-    ports:
-      - "3003:3000"
-    volumes:
-      - grafana_data:/var/lib/grafana
-    environment:
-      - GF_SECURITY_ADMIN_USER=admin
-      - GF_SECURITY_ADMIN_PASSWORD=adminpassword
-    networks:
-      - nas_network
+  # grafana:
+  #   image: grafana/grafana:latest
+  #   container_name: grafana
+  #   restart: unless-stopped
+  #   ports:
+  #     - "3003:3000"
+  #   volumes:
+  #     - grafana_data:/var/lib/grafana
+  #   environment:
+  #     - GF_SECURITY_ADMIN_USER=admin
+  #     - GF_SECURITY_ADMIN_PASSWORD=adminpassword
+  #   networks:
+  #     - nas_network
 
 volumes:
   shared_downloads:
