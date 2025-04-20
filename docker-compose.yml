@@ -55,6 +55,43 @@ services:
     networks:
       - nas_network
 
+  portainer:
+    image: portainer/portainer-ce:latest
+    container_name: portainer
+    restart: unless-stopped
+    ports:
+      - "9000:9000"
+    volumes:
+      - portainer_data:/data
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - nas_network
+
+  pihole:
+    image: pihole/pihole:latest
+    container_name: pihole
+    restart: unless-stopped
+    ports:
+      - "53:53/tcp"
+      - "53:53/udp"
+      - "67:67/udp"
+      - "80:80/tcp"
+    environment:
+      - TZ=UTC
+      - WEBPASSWORD=FreakiestNas
+      - DNS1=1.1.1.1
+      - DNS2=1.0.0.1
+    volumes:
+      - pihole_data:/etc/pihole
+      - pihole_dnsmasq:/etc/dnsmasq.d
+    networks:
+      - nas_network
+    dns:
+      - 127.0.0.1
+      - 1.1.1.1
+    cap_add:
+      - NET_ADMIN
+
   openwebui:
     image: ghcr.io/open-webui/open-webui:main
     container_name: openwebui
@@ -78,6 +115,24 @@ volumes:
     driver_opts:
       type: none
       device: /share/docker_volumes/ollama_data
+      o: bind
+  portainer_data:
+    driver: local
+    driver_opts:
+      type: none
+      device: /share/docker_volumes/portainer_data
+      o: bind
+  pihole_data:
+    driver: local
+    driver_opts:
+      type: none
+      device: /share/docker_volumes/pihole_data
+      o: bind
+  pihole_dnsmasq:
+    driver: local
+    driver_opts:
+      type: none
+      device: /share/docker_volumes/pihole_dnsmasq
       o: bind
   grafana_data:
   influxdb_data:
