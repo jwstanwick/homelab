@@ -25,6 +25,9 @@ deploy-pi:
 down:
 	docker-compose down
 
+ssh:
+	ssh 10.0.0.173
+	
 # Rebuild and deploy (for development)
 rebuild:
 	docker-compose build --no-cache videotranscoder

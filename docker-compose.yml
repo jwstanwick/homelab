@@ -44,6 +44,17 @@ services:
     profiles:
       - with_nas
 
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    networks:
+      - nas_network
+
   openwebui:
     image: ghcr.io/open-webui/open-webui:main
     container_name: openwebui
@@ -51,44 +62,23 @@ services:
     ports:
       - "3002:8080"
     environment:
-      - OLLAMA_API_BASE_URL=${OLLAMA_API_URL:-http://100.109.13.105:11434/api}
+      - OLLAMA_API_BASE_URL=http://ollama:11434/api
     networks:
       - nas_network
 
-  # influxdb:
-  #   image: influxdb:2.7
-  #   container_name: influxdb
-  #   restart: unless-stopped
-  #   ports:
-  #     - "8086:8086"
-  #   volumes:
-  #     - influxdb_data:/var/lib/influxdb2
-  #   environment:
-  #     - DOCKER_INFLUXDB_INIT_MODE=setup
-  #     - DOCKER_INFLUXDB_INIT_USERNAME=admin
-  #     - DOCKER_INFLUXDB_INIT_PASSWORD=adminpassword
-  #     - DOCKER_INFLUXDB_INIT_ORG=homelab
-  #     - DOCKER_INFLUXDB_INIT_BUCKET=docker_metrics
-  #   networks:
-  #     - nas_network
-
-  # grafana:
-  #   image: grafana/grafana:latest
-  #   container_name: grafana
-  #   restart: unless-stopped
-  #   ports:
-  #     - "3003:3000"
-  #   volumes:
-  #     - grafana_data:/var/lib/grafana
-  #   environment:
-  #     - GF_SECURITY_ADMIN_USER=admin
-  #     - GF_SECURITY_ADMIN_PASSWORD=adminpassword
-  #   networks:
-  #     - nas_network
-
 volumes:
   shared_downloads:
+    driver: local
+    driver_opts:
+      type: none
+      device: /share/docker_volumes/shared_downloads
+      o: bind
   ollama_data:
+    driver: local
+    driver_opts:
+      type: none
+      device: /share/docker_volumes/ollama_data
+      o: bind
   grafana_data:
   influxdb_data:
 
